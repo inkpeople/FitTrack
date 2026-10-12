@@ -1,25 +1,8 @@
-const CACHE='fittrack-shell-v16';
+const CACHE='fittrack-shell-v17';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fittrack-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{const req=event.request;if(req.method!=='GET'||new URL(req.url).origin!==self.location.origin)return;event.respondWith(fetch(req).then(res=>{if(res&&res.ok){const copy=res.clone();caches.open(CACHE).then(cache=>cache.put(req,copy))}return res}).catch(()=>caches.match(req).then(cached=>cached||caches.match('./index.html'))))});
 self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting()});
-
-self.addEventListener('push',event=>{
-  let data={title:'FitTrack — напоминание',body:'Пора выполнить запланированное действие'};
-  try{if(event.data){const parsed=event.data.json();data={...data,...parsed}}}catch(e){try{if(event.data)data.body=event.data.text()}catch(e2){}}
-  event.waitUntil(self.registration.showNotification(data.title||'FitTrack — напоминание',{
-    body:data.body||'Пора выполнить запланированное действие',
-    icon:'./icon.svg',badge:'./icon.svg',tag:data.tag||'fittrack-reminder',
-    renotify:true,silent:false,vibrate:[250,120,250],requireInteraction:true,
-    data:{url:data.url||'./'}
-  }));
-});
-self.addEventListener('notificationclick',event=>{
-  event.notification.close();
-  const target=new URL((event.notification.data&&event.notification.data.url)||'./',self.location.origin).href;
-  event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(clients=>{
-    for(const client of clients){if(new URL(client.url).origin===self.location.origin){client.navigate(target);return client.focus()}}
-    return self.clients.openWindow(target);
-  }));
-});
+self.addEventListener('push',event=>{let data={title:'FitTrack — напоминание',body:'Пора выполнить запланированное действие'};try{if(event.data){const parsed=event.data.json();data={...data,...parsed}}}catch(e){try{if(event.data)data.body=event.data.text()}catch(e2){}}event.waitUntil(self.registration.showNotification(data.title||'FitTrack — напоминание',{body:data.body||'Пора выполнить запланированное действие',icon:'./icon.svg',badge:'./icon.svg',tag:data.tag||'fittrack-reminder',renotify:true,silent:false,vibrate:[250,120,250],requireInteraction:true,data:{url:data.url||'./'}}))});
+self.addEventListener('notificationclick',event=>{event.notification.close();const target=new URL((event.notification.data&&event.notification.data.url)||'./',self.location.origin).href;event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(clients=>{for(const client of clients){if(new URL(client.url).origin===self.location.origin){client.navigate(target);return client.focus()}}return self.clients.openWindow(target)}))});
