@@ -75,7 +75,7 @@ if(!Array.isArray(S.entries))S.entries=[];
 if(!S.water||typeof S.water!=='object'||Array.isArray(S.water))S.water={};
 if(!S.weights||typeof S.weights!=='object'||Array.isArray(S.weights))S.weights={};
 if(!Array.isArray(S.rems))S.rems=[];
-S.rems=S.rems.filter(r=>r&&typeof r==='object').map(r=>({...r,t:String(r.t||'Напоминание'),tm:/^\\d{2}:\\d{2}$/.test(String(r.tm||''))?String(r.tm):'09:00',on:r.on?1:0}));
+S.rems=S.rems.filter(r=>r&&typeof r==='object').map(r=>({...r,t:String(r.t||'Напоминание'),tm:/^\d{2}:\d{2}$/.test(String(r.tm||''))?String(r.tm):'09:00',on:r.on?1:0}));
 if(!Array.isArray(S.wk))S.wk=[];
 if(!S.bodyLog||typeof S.bodyLog!=='object'||Array.isArray(S.bodyLog))S.bodyLog={};
 if(!S.supp||typeof S.supp!=='object'||Array.isArray(S.supp))S.supp={};
