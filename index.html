@@ -68,6 +68,19 @@ const SEED=[["Куриная грудка",165,31,3.6,0,0],["Рис",130,2.7,.3,
 const ST={get(k){try{return localStorage.getItem(k)}catch(e){try{return JSON.parse(window.name||'{}')[k]||null}catch(e2){return null}}},set(k,v){try{localStorage.setItem(k,v)}catch(e){try{const o=JSON.parse(window.name||'{}');o[k]=v;window.name=JSON.stringify(o)}catch(e2){}}},del(k){try{localStorage.removeItem(k)}catch(e){}try{window.name=''}catch(e){}}};
 let S=null;try{S=JSON.parse(ST.get('ft'))}catch(e){}
 S=S||{p:null,foods:SEED,entries:[],water:{},weights:{},rems:[["Завтрак","07:30"],["Обед","14:00"],["Ужин","20:00"],["Вода","09:00"]].map(r=>({t:r[0],tm:r[1],on:0}))};
+// --- восстановление старых/частично повреждённых локальных данных: не даём запуску упасть на отсутствующих полях
+if(!S||typeof S!=='object'||Array.isArray(S))S={};
+if(!Array.isArray(S.foods)||!S.foods.length)S.foods=SEED.map(f=>({...f}));
+if(!Array.isArray(S.entries))S.entries=[];
+if(!S.water||typeof S.water!=='object'||Array.isArray(S.water))S.water={};
+if(!S.weights||typeof S.weights!=='object'||Array.isArray(S.weights))S.weights={};
+if(!Array.isArray(S.rems))S.rems=[];
+S.rems=S.rems.filter(r=>r&&typeof r==='object').map(r=>({...r,t:String(r.t||'Напоминание'),tm:/^\\d{2}:\\d{2}$/.test(String(r.tm||''))?String(r.tm):'09:00',on:r.on?1:0}));
+if(!Array.isArray(S.wk))S.wk=[];
+if(!S.bodyLog||typeof S.bodyLog!=='object'||Array.isArray(S.bodyLog))S.bodyLog={};
+if(!S.supp||typeof S.supp!=='object'||Array.isArray(S.supp))S.supp={};
+try{ST.set('ft',JSON.stringify(S))}catch(e){}
+
 const save=()=>{try{ST.set('ft',JSON.stringify(S))}catch(e){}try{nativeSync()}catch(e){}};
 const D=()=>new Date().toLocaleDateString('sv');
 let tab='home',ov=null,shift=0,ob={step:-1,male:1,act:1.55,goal:'lose'},A={},R={fr:0},DS={n:4},PT='w',P={tab:'fav',q:''},W={f:'all'};S.wk=S.wk||[];S.bodyLog=S.bodyLog||{};if(!S.rems.some(r=>/взвеш/i.test(r.t)))S.rems.unshift({t:'Взвешивание',tm:'08:00',d:1,on:1});
