@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "FitTrack — питание и прогресс",
+  "short_name": "FitTrack",
+  "description": "Трекер питания, калорий, воды и прогресса",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070605",
+  "theme_color": "#070605",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
