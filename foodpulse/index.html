@@ -162,6 +162,21 @@ function buildMealPlan(){
  vegan:[{name:'Завтрак · овсянка на соевом молоке',meal:'Завтрак',items:[[1014,60],[1146,250],[17,100],[1101,8]]},{name:'Обед · тофу с рисом и брокколи',meal:'Обед',items:[[43,180],[1001,220],[21,150],[1142,5]]},{name:'Перекус · хумус, хлеб и яблоко',meal:'Перекус',items:[[47,60],[15,70],[18,150]]},{name:'Ужин · чечевица, картофель и шпинат',meal:'Ужин',items:[[1011,220],[1100,200],[1102,100],[1142,5]]}]};
  const source=plans[diet]||plans.omnivore,byId=id=>[...DB,...userFoods,...onlineFoods].find(f=>String(f.id)===String(id)),raw=source.flatMap(m=>m.items.map(([id,g])=>({f:byId(id),g}))).filter(x=>x.f),baseK=raw.reduce((a,x)=>a+x.f.kcal*x.g/100,0),factor=Math.max(.75,Math.min(1.3,targets().k/Math.max(1,baseK)));
  generatedPlan=source.map(m=>({...m,items:m.items.map(([id,g])=>{const f=byId(id);return f?{...f,grams:Math.max(5,Math.round(g*factor/5)*5)}:null}).filter(Boolean)}));
+ const addIngredient=(mealName,id,grams)=>{const f=byId(id),meal=generatedPlan.find(x=>x.meal===mealName);if(f&&meal){const old=meal.items.find(x=>String(x.id)===String(id));if(old)old.grams+=grams;else meal.items.push({...f,grams});}};
+ if(diet==='omnivore')addIngredient('Обед',8,80);
+ if(diet==='vegetarian')addIngredient('Перекус',1148,180);
+ if(diet==='vegan'){addIngredient('Ужин',1004,80);addIngredient('Ужин',43,100);}
+ const kcalNow=()=>generatedPlan.reduce((a,m)=>a+m.items.reduce((b,f)=>b+f.kcal*f.grams/100,0),0);
+ const calorieTrimOrder=[1001,1100,1014,15,17,18,1142,21,1124,1123,23,47];
+ let guard=0;
+ while(kcalNow()>targets().k*1.01&&guard++<150){
+  let changed=false;
+  for(const id of calorieTrimOrder){
+   const item=generatedPlan.flatMap(m=>m.items).find(f=>String(f.id)===String(id)&&f.grams>25);
+   if(item){item.grams-=5;changed=true;break;}
+  }
+  if(!changed)break;
+ }
  generatedPlan.forEach(m=>{m.totals=m.items.reduce((a,f)=>{a.k+=f.kcal*f.grams/100;a.p+=f.p*f.grams/100;a.f+=f.f*f.grams/100;a.c+=f.c*f.grams/100;return a},{k:0,p:0,f:0,c:0})});
  const t=targets(),sum=generatedPlan.reduce((a,m)=>({k:a.k+m.totals.k,p:a.p+m.totals.p,f:a.f+m.totals.f,c:a.c+m.totals.c}),{k:0,p:0,f:0,c:0});
  $('planSummary').textContent='Тип питания: '+diet+'. Итого по карточкам: '+Math.round(sum.k)+' / '+t.k+' ккал; Б '+fmt(sum.p)+' / '+t.p+' г; Ж '+fmt(sum.f)+' / '+t.f+' г; У '+fmt(sum.c)+' / '+t.c+' г. Порции масштабируются к калорийной цели в пределах ±25%; значения справочные.';
