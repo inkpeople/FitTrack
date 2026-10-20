@@ -186,7 +186,7 @@ function fpReminderItems(){
  const protein=$('proteinReminder')?.value||'off',creatine=$('creatineReminder')?.value||'off';
  if(protein==='daily')items.push(['Протеин','16:00']);
  if(creatine==='daily')items.push(['Креатин','10:00']);
- return items.filter(x=>/^([01]\\d|2[0-3]):[0-5]\\d$/.test(x[1]));
+ return items.filter(x=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x[1]));
 }
 function fpClearReminderTimers(){(window.fpReminderTimers||[]).forEach(id=>clearTimeout(id));window.fpReminderTimers=[]}
 function fpScheduleReminder(item){
