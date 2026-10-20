@@ -110,11 +110,58 @@ function fuzzyMatch(f,q){if(!q)return true;let hay=normalizeSearch([f.name,f.bra
 function foodIdSafe(id){return String(id).replace(/[^a-zA-Z0-9_-]/g,'_')}
 function toggleFoodSelection(id,checked){id=String(id);if(checked)selectedFoodIds.add(id);else selectedFoodIds.delete(id);updateBulkFoodCount()}
 function updateBulkFoodCount(){const el=$('bulkFoodCount');if(el)el.textContent=selectedFoodIds.size?'Выбрано продуктов: '+selectedFoodIds.size+' · количество каждого можно изменить в карточке':'Выбери несколько продуктов для быстрого добавления'}
-function addSelectedFoods(){if(!selectedFoodIds.size)return toast('Сначала выбери продукты');let h=new Date().getHours(),mealName=h<11?'Завтрак':h<16?'Обед':h<20?'Ужин':'Перекус',added=0;for(const id of [...selectedFoodIds]){const f=[...DB,...userFoods,...onlineFoods].find(x=>String(x.id)===id);if(!f)continue;const grams=num($('bulkGrams_'+foodIdSafe(id))?.value,100);if(grams<=0)continue;const existing=meals.find(m=>String(m.id)===id&&m.date===diaryDate&&m.meal===mealName);if(existing)existing.grams=num(existing.grams)+grams;else meals.push({...f,uid:Date.now()+added,grams,meal:mealName,date:diaryDate});recentFoodIds=[id,...recentFoodIds.filter(x=>x!==id)].slice(0,20);added++}if(!added)return toast('Проверь количество граммов');localStorage.setItem('fpRecentFoods',JSON.stringify(recentFoodIds));saveMeals();selectedFoodIds.clear();renderFoods();renderDash();toast('Добавлено продуктов: '+added)}
+function addSelectedFoods(){
+ if(!selectedFoodIds.size)return toast('Сначала выбери продукты');
+ const all=[...DB,...userFoods,...onlineFoods];
+ const h=new Date().getHours(),mealName=h<11?'Завтрак':h<16?'Обед':h<20?'Ужин':'Перекус';
+ let added=0,skipped=0;
+ for(const rawId of [...selectedFoodIds]){
+  const id=String(rawId),f=all.find(x=>String(x.id)===id);
+  if(!f){skipped++;continue}
+  const input=$('bulkGrams_'+foodIdSafe(id)),grams=input?Number(input.value):100;
+  if(!Number.isFinite(grams)||grams<=0){skipped++;continue}
+  const existing=meals.find(m=>String(m.id)===id&&m.date===diaryDate&&m.meal===mealName);
+  if(existing)existing.grams=Number(existing.grams||0)+grams;
+  else meals.push({...f,uid:Date.now()+added,id,grams,meal:mealName,date:diaryDate});
+  recentFoodIds=[id,...recentFoodIds.filter(x=>x!==id)].slice(0,20);added++;
+ }
+ if(!added)return toast('Не удалось добавить выбранные продукты. Проверь граммы и повтори.');
+ localStorage.setItem('fpRecentFoods',JSON.stringify(recentFoodIds));
+ saveMeals();selectedFoodIds.clear();renderFoods();renderDash();
+ toast('Добавлено продуктов: '+added+(skipped?' · пропущено: '+skipped:''));
+}
 function renderFoods(){if(!$('foodGrid'))return;let q=$('foodSearch').value.trim(),diet=profile.diet||'omnivore';const seenBaseNames=new Set();let baseUnique=DB.filter(f=>{const key=normalizeSearch(f.name);if(!key||seenBaseNames.has(key))return false;seenBaseNames.add(key);return true});let all=[...baseUnique,...userFoods,...onlineFoods];let list=all.filter(f=>(selectedCat==='Все'||f.cat===selectedCat)&&fuzzyMatch(f,q)&&(selectedFoodState==='all'||foodStateOf(f)==='any'||foodStateOf(f)===selectedFoodState));if(diet==='vegan')list=list.filter(f=>f.cat!=='Молочные продукты'&&f.cat!=='Сыры'&&f.cat!=='Яйца'&&f.cat!=='Мясо и рыба'&&f.cat!=='Вегетарианское');if(diet==='vegetarian')list=list.filter(f=>f.cat!=='Мясо и рыба');$('foodGrid').innerHTML=list.length?list.map(f=>{let safe=foodIdSafe(f.id),checked=selectedFoodIds.has(String(f.id)),personal=f.source==='user'||String(f.id).startsWith('custom_');return '<article class="foodcard">'+(f.image?'<img src="'+f.image+'" loading="lazy" alt="">':'<div class="emoji">'+f.emoji+'</div>')+'<strong>'+escapeHtml(f.name)+'</strong><small>'+escapeHtml(f.brand||'Справочные данные')+' · на 100 г'+(personal?' · мой продукт':f.microSource?' · '+escapeHtml(f.microSource):'')+(f.nutritionQuality?' · '+escapeHtml(f.nutritionQuality):'')+(f.nutritionUpdated?' · обновлено '+escapeHtml(f.nutritionUpdated):'')+(f.sourceUrl?' · <a target="_blank" rel="noopener" href="'+escapeHtml(f.sourceUrl)+'">источник</a>':'')+(foodStateOf(f)==='dry'?' · сухой/сырой':foodStateOf(f)==='cooked'?' · готовый/варёный':'')+'</small><div class="macros"><span>🔥 '+f.kcal+'</span><span>Б '+f.p+'</span><span>Ж '+f.f+'</span><span>У '+f.c+'</span></div><div style="display:flex;align-items:center;gap:8px;margin:8px 0"><label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" '+(checked?'checked':'')+' onchange="toggleFoodSelection('+JSON.stringify(String(f.id))+',this.checked)"> В быстрый ввод</label><label style="font-size:12px">г <input id="bulkGrams_'+safe+'" type="number" min="1" value="100" style="width:68px;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--txt)"></label></div><button class="btn" onclick="addFood('+JSON.stringify(f.id)+')">+ В дневник</button>'+(personal?' <button class="btn secondary" onclick="editCustomFood('+JSON.stringify(String(f.id))+')">Изменить</button>':' <button class="btn secondary" onclick="makePersonalCopy('+JSON.stringify(String(f.id))+')">Моя версия</button>')+'</article>'}).join(''):'<div class="empty" style="grid-column:1/-1">Не нашли в локальной базе. Попробуй онлайн-поиск.</div>';updateBulkFoodCount()}
-function addFood(id){let f=[...DB,...userFoods,...onlineFoods].find(x=>String(x.id)===String(id));if(!f)return;modalFood=f;$('modalFoodName').textContent=f.name;$('modalFoodMacros').textContent=Math.round(f.kcal)+' ккал · Б '+f.p+' г · Ж '+f.f+' г · У '+f.c+' г на 100 г';$('modalGrams').value='100';let h=new Date().getHours();$('modalMeal').value=h<11?'Завтрак':h<16?'Обед':h<20?'Ужин':'Перекус';$('foodModal').style.display='flex'}
+function addFood(id){
+ const all=[...DB,...userFoods,...onlineFoods];
+ const key=String(id);
+ const f=all.find(x=>String(x.id)===key)||onlineFoods.find(x=>String(x.barcode||'')===key)||all.find(x=>String(x.id)===key.replace(/^off/,''));
+ if(!f){toast('Не удалось открыть продукт. Повтори поиск.');return}
+ modalFood={...f,id:String(f.id)};
+ $('modalFoodName').textContent=modalFood.name||'Продукт';
+ $('modalFoodMacros').textContent=Math.round(num(modalFood.kcal))+' ккал · Б '+num(modalFood.p)+' г · Ж '+num(modalFood.f)+' г · У '+num(modalFood.c)+' г на 100 г';
+ $('modalGrams').value='100';
+ const h=new Date().getHours();
+ $('modalMeal').value=h<11?'Завтрак':h<16?'Обед':h<20?'Ужин':'Перекус';
+ $('foodModal').style.display='flex';
+}
 function closeFoodModal(){$('foodModal').style.display='none';modalFood=null}
-function confirmAddFood(keepGoing=false){if(!modalFood)return;let grams=num($('modalGrams').value);if(grams<=0)return toast('Укажи количество в граммах');let mealName=$('modalMeal').value,existing=meals.find(m=>String(m.id)===String(modalFood.id)&&m.date===diaryDate&&m.meal===mealName);if(existing)existing.grams=num(existing.grams)+grams;else meals.push({...modalFood,uid:Date.now(),grams,meal:mealName,date:diaryDate});recentFoodIds=[String(modalFood.id),...recentFoodIds.filter(x=>x!==String(modalFood.id))].slice(0,20);localStorage.setItem('fpRecentFoods',JSON.stringify(recentFoodIds));saveMeals();closeFoodModal();renderDash();toast(existing?'Количество продукта обновлено':'Добавлено в дневник')}
+function confirmAddFood(keepGoing=false){
+ if(!modalFood)return toast('Сначала выбери продукт');
+ const grams=Number($('modalGrams').value);
+ if(!Number.isFinite(grams)||grams<=0)return toast('Укажи количество в граммах');
+ try{
+  const mealName=$('modalMeal').value||'Перекус',id=String(modalFood.id);
+  const existing=meals.find(m=>String(m.id)===id&&m.date===diaryDate&&m.meal===mealName);
+  if(existing)existing.grams=Number(existing.grams||0)+grams;
+  else meals.push({...modalFood,uid:Date.now()+Math.floor(Math.random()*1000),id,grams,meal:mealName,date:diaryDate});
+  recentFoodIds=[id,...recentFoodIds.filter(x=>x!==id)].slice(0,20);
+  localStorage.setItem('fpRecentFoods',JSON.stringify(recentFoodIds));
+  saveMeals();
+  renderDash();
+  if(keepGoing){$('modalGrams').value='100';toast('Добавлено в дневник. Можно добавить следующий продукт.')}
+  else{closeFoodModal();toast(existing?'Количество продукта обновлено':'Добавлено в дневник')}
+ }catch(e){toast('Не удалось добавить продукт: '+String(e.message||e))}
+}
 let barcodeStream=null,barcodeTimer=null,barcodeDetector=null,barcodeBusy=false,undoMeal=null;
 function editMeal(uid){let m=meals.find(x=>String(x.uid)===String(uid));if(!m)return toast('Запись не найдена');$('editMealUid').value=m.uid;$('editMealName').textContent=m.name;$('editMealGrams').value=m.grams;$('editMealType').value=m.meal;$('editMealDate').value=m.date||diaryDate;$('editMealModal').style.display='flex'}
 function closeEditMeal(){$('editMealModal').style.display='none'}
